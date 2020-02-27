@@ -12,6 +12,7 @@ namespace Exercism.Representers.CSharp.Normalization
         
         private static CSharpSyntaxRewriter[] SyntaxRewriters(Dictionary<string, string> mapping) => new CSharpSyntaxRewriter[]
         {
+            new ReorderMembers(),
             new RemoveOptionalParentheses(),
             new SimplifyFullyQualifiedName(),
             new SimplifyBuiltInKeyword(),

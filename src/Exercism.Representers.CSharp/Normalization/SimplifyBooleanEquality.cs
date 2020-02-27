@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace Exercism.Representers.CSharp.Normalization
 {
@@ -14,7 +15,7 @@ namespace Exercism.Representers.CSharp.Normalization
                     return node.Right;
 
                 if (leftLiteralExpression.IsKind(SyntaxKind.FalseLiteralExpression))
-                    return SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, node.Right);
+                    return PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, node.Right);
             }
  
             if (node.Right is LiteralExpressionSyntax rightLiteralExpression)
@@ -23,7 +24,7 @@ namespace Exercism.Representers.CSharp.Normalization
                     return node.Left;
                 
                 if (rightLiteralExpression.IsKind(SyntaxKind.FalseLiteralExpression))
-                    return SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, node.Left);
+                    return PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, node.Left);
             }   
             
             return base.VisitBinaryExpression(node);
