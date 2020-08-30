@@ -108,9 +108,9 @@ namespace Exercism.Representers.CSharp.Normalization
                     .Select(initializer => new
                     {
                         arg0 = initializer.Descendants().FirstOrDefault(d => d is IArgumentOperation),
-                        arg1 = (initializer as IAssignmentOperation).Value
+                        arg1 = (initializer as IAssignmentOperation)?.Value
                     })
-                    .Select(p => (p.arg0?.Syntax is null || p.arg1.Syntax is null)
+                    .Select(p => (p.arg0?.Syntax is null || p.arg1?.Syntax is null)
                         ? throw new NullReferenceException()
                         : new KeyValuePair<SyntaxNode, SyntaxNode>(p.arg0.Syntax, p.arg1.Syntax))
                     .ToList();
