@@ -21,7 +21,7 @@ namespace Exercism.Representers.CSharp.Normalization
 
         public NormalizeDictionaryInitialization(SemanticModel semanticModel)
         {
-            if (semanticModel is null)
+            if (semanticModel == default)
             {
                 Log.Error(
                     $"{nameof(NormalizeDictionaryInitialization)}: semantic model is null - this normalization will fail");
@@ -34,7 +34,7 @@ namespace Exercism.Representers.CSharp.Normalization
         {
             SyntaxNode DefaultVisit() => base.VisitInitializerExpression(node);
 
-            if (semanticModel is null)
+            if (semanticModel == default)
             {
                 return DefaultVisit();
             }
@@ -45,7 +45,7 @@ namespace Exercism.Representers.CSharp.Normalization
                 {
                     if (initializerOperation.Parent?.Type?.Name != "Dictionary")
                     {
-                        if (initializerOperation.Parent?.Type?.Name is null)
+                        if (initializerOperation.Parent?.Type?.Name == default)
                         {
                             Log.Error(
                                 $"{nameof(NormalizeDictionaryInitialization)}: unable to retrieve the type information for {nameof(initializerOperation)}");
@@ -73,19 +73,19 @@ namespace Exercism.Representers.CSharp.Normalization
                         return DefaultVisit();
                     }
 
-                    var explodedInitializerSyntaxNodes = initializerNodeDetails.InitializerSyntaxNodes
+                    var visitedInitializerSyntaxNodes = initializerNodeDetails.InitializerSyntaxNodes
                         .Select(initializer => new KeyValuePair<SyntaxNode, SyntaxNode>(
                             this.Visit(initializer.Key),
                             this.Visit(initializer.Value))
                         );
 
-                    var dictionaryAsText = BuildDictionaryAsText(explodedInitializerSyntaxNodes);
+                    var dictionaryAsText = BuildDictionaryAsText(visitedInitializerSyntaxNodes);
                     var dictionarySyntaxTree = CSharpSyntaxTree.ParseText(dictionaryAsText);
                     var replacementNode = dictionarySyntaxTree
                         .GetRoot()
                         .DescendantNodes()
                         .FirstOrDefault(n => n is InitializerExpressionSyntax);
-                    if (replacementNode == default(SyntaxNode))
+                    if (replacementNode == default)
                     {
                         Log.Error(
                             $"{nameof(NormalizeDictionaryInitialization)}: failed to find a {nameof(InitializerExpressionSyntax)} node in generated dictionary fragment");
@@ -119,7 +119,7 @@ namespace Exercism.Representers.CSharp.Normalization
                         arg0 = initializer.Descendants().FirstOrDefault(d => d is IArgumentOperation),
                         arg1 = (initializer as IAssignmentOperation)?.Value
                     })
-                    .Select(p => (p.arg0?.Syntax is null || p.arg1?.Syntax is null)
+                    .Select(p => (p.arg0?.Syntax == default || p.arg1?.Syntax == default)
                         ? throw new NullReferenceException()
                         : new KeyValuePair<SyntaxNode, SyntaxNode>(p.arg0.Syntax, p.arg1.Syntax))
                     .ToList();
@@ -127,7 +127,7 @@ namespace Exercism.Representers.CSharp.Normalization
             }
             catch (NullReferenceException)
             {
-                return (false, null);
+                return (false, default);
             }
         }
 
@@ -139,7 +139,7 @@ namespace Exercism.Representers.CSharp.Normalization
                 var initializerSyntaxNodes = initializerOperation.Initializers
                     .Select(initializer => (initializer as IInvocationOperation)?.Arguments)
                     .Select(args =>
-                        (args?.Length != 2 || args?[0]?.Syntax is null || args?[1]?.Syntax is null)
+                        (args?.Length != 2 || args?[0]?.Syntax == default || args?[1]?.Syntax == default)
                             ? throw new NullReferenceException()
                             : new KeyValuePair<SyntaxNode, SyntaxNode>(args?[0]?.Syntax, args?[1]?.Syntax)
                     ).ToList();
@@ -147,7 +147,7 @@ namespace Exercism.Representers.CSharp.Normalization
             }
             catch (NullReferenceException)
             {
-                return (false, null);
+                return (false, default);
             }
         }
 
