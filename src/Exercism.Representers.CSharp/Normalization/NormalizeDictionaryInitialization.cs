@@ -55,7 +55,7 @@ namespace Exercism.Representers.CSharp.Normalization
                         // presumably a list or some object or other
                     }
 
-                    var initializerNodeDetails
+                    var initializerExtractionResults
                         = node.Kind() switch
                         {
                             SyntaxKind.CollectionInitializerExpression
@@ -66,14 +66,14 @@ namespace Exercism.Representers.CSharp.Normalization
                             => throw new InvalidKindException{Kind = node.Kind()}
                         };
 
-                    if (!initializerNodeDetails.Success)
+                    if (!initializerExtractionResults.Success)
                     {
                         Log.Error(
                             $"{nameof(NormalizeDictionaryInitialization)}: dictionary initialization found with incorrect number of valid arguments (!=2)");
                         return DefaultVisit();
                     }
 
-                    var visitedInitializerSyntaxNodes = initializerNodeDetails.InitializerSyntaxNodes
+                    var visitedInitializerSyntaxNodes = initializerExtractionResults.InitializerSyntaxNodes
                         .Select(initializer => new KeyValuePair<SyntaxNode, SyntaxNode>(
                             this.Visit(initializer.Key),
                             this.Visit(initializer.Value))
