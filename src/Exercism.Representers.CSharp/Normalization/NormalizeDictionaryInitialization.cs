@@ -12,10 +12,21 @@ namespace Exercism.Representers.CSharp.Normalization
 {
     public class NormalizeDictionaryInitialization : CSharpSyntaxRewriter
     {
+        private class InvalidKindException : Exception
+        {
+            public SyntaxKind Kind;
+        }
+
         private readonly SemanticModel semanticModel;
 
         public NormalizeDictionaryInitialization(SemanticModel semanticModel)
         {
+            if (semanticModel is null)
+            {
+                Log.Error(
+                    $"{nameof(NormalizeDictionaryInitialization)}: semantic model is null - this normalization will fail");
+            }
+
             this.semanticModel = semanticModel;
         }
 
@@ -23,7 +34,7 @@ namespace Exercism.Representers.CSharp.Normalization
         {
             SyntaxNode DefaultVisit() => base.VisitInitializerExpression(node);
 
-            if (semanticModel == null)
+            if (semanticModel is null)
             {
                 return DefaultVisit();
             }
@@ -34,7 +45,7 @@ namespace Exercism.Representers.CSharp.Normalization
                 {
                     if (initializerOperation.Parent?.Type?.Name != "Dictionary")
                     {
-                        if (initializerOperation.Parent?.Type?.Name == null)
+                        if (initializerOperation.Parent?.Type?.Name is null)
                         {
                             Log.Error(
                                 $"{nameof(NormalizeDictionaryInitialization)}: unable to retrieve the type information for {nameof(initializerOperation)}");
@@ -44,38 +55,31 @@ namespace Exercism.Representers.CSharp.Normalization
                         // presumably a list or some object or other
                     }
 
-                    (bool Success, List<KeyValuePair<SyntaxNode, SyntaxNode>> Initializers) initializerDetails;
-                    if (node.Kind() == SyntaxKind.CollectionInitializerExpression)
-                    {
-                        initializerDetails = ExtractInitializersWithCollectionSyntax(initializerOperation);
-                    }
-                    else if (node.Kind() == SyntaxKind.ObjectInitializerExpression)
-                    {
-                        initializerDetails = ExtractInitializersWithObjectSyntax(initializerOperation);
-                    }
-                    else
-                    {
-                        Log.Error(
-                            $"{nameof(NormalizeDictionaryInitialization)}: {nameof(InitializerExpressionSyntax)} found with unexpected Kind {node.Kind()}");
-                        return DefaultVisit();
-                    }
+                    var initializerNodeDetails
+                        = node.Kind() switch
+                        {
+                            SyntaxKind.CollectionInitializerExpression
+                            => ExtractInitializersWithCollectionSyntax(initializerOperation),
+                            SyntaxKind.ObjectInitializerExpression
+                            => ExtractInitializersWithObjectSyntax(initializerOperation),
+                            _ 
+                            => throw new InvalidKindException{Kind = node.Kind()}
+                        };
 
-                    if (!initializerDetails.Success)
+                    if (!initializerNodeDetails.Success)
                     {
                         Log.Error(
                             $"{nameof(NormalizeDictionaryInitialization)}: dictionary initialization found with incorrect number of valid arguments (!=2)");
                         return DefaultVisit();
                     }
 
-                    var explodedInitializers = new List<KeyValuePair<SyntaxNode, SyntaxNode>>();
-                    foreach (var initializer in initializerDetails.Initializers)
-                    {
-                        explodedInitializers.Add(
-                            new KeyValuePair<SyntaxNode, SyntaxNode>(this.Visit(initializer.Key)
-                                , this.Visit(initializer.Value)));
-                    }
+                    var explodedInitializerSyntaxNodes = initializerNodeDetails.InitializerSyntaxNodes
+                        .Select(initializer => new KeyValuePair<SyntaxNode, SyntaxNode>(
+                            this.Visit(initializer.Key),
+                            this.Visit(initializer.Value))
+                        );
 
-                    var dictionaryAsText = BuildDictionaryAsText(explodedInitializers);
+                    var dictionaryAsText = BuildDictionaryAsText(explodedInitializerSyntaxNodes);
                     var dictionarySyntaxTree = CSharpSyntaxTree.ParseText(dictionaryAsText);
                     var replacementNode = dictionarySyntaxTree
                         .GetRoot()
@@ -91,6 +95,11 @@ namespace Exercism.Representers.CSharp.Normalization
                     return replacementNode;
                 }
             }
+            catch (InvalidKindException ike)
+            {
+                Log.Error(
+                    $"{nameof(NormalizeDictionaryInitialization)}: {nameof(InitializerExpressionSyntax)} found with unexpected Kind {ike.Kind}");
+            }
             catch (Exception e)
             {
                 Log.Error(e, $"{nameof(NormalizeDictionaryInitialization)}: unknown error");
@@ -99,7 +108,7 @@ namespace Exercism.Representers.CSharp.Normalization
             return DefaultVisit();
         }
 
-        private (bool Success, List<KeyValuePair<SyntaxNode, SyntaxNode>> Initializers)
+        private (bool Success, List<KeyValuePair<SyntaxNode, SyntaxNode>> InitializerSyntaxNodes)
             ExtractInitializersWithObjectSyntax(IObjectOrCollectionInitializerOperation initializerOperation)
         {
             try
@@ -122,7 +131,7 @@ namespace Exercism.Representers.CSharp.Normalization
             }
         }
 
-        private (bool Success, List<KeyValuePair<SyntaxNode, SyntaxNode>> Initializers)
+        private (bool Success, List<KeyValuePair<SyntaxNode, SyntaxNode>> InitializerSyntaxNodes)
             ExtractInitializersWithCollectionSyntax(IObjectOrCollectionInitializerOperation initializerOperation)
         {
             try
