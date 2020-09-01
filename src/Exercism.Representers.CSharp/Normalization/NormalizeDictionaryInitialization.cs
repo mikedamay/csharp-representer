@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -68,8 +70,6 @@ namespace Exercism.Representers.CSharp.Normalization
 
                     if (!initializerExtractionResults.Success)
                     {
-                        Log.Error(
-                            $"{nameof(NormalizeDictionaryInitialization)}: dictionary initialization found with incorrect number of valid arguments (!=2)");
                         return DefaultVisit();
                     }
 
@@ -120,13 +120,15 @@ namespace Exercism.Representers.CSharp.Normalization
                         arg1 = (initializer as IAssignmentOperation)?.Value
                     })
                     .Select(p => (p.arg0?.Syntax == default || p.arg1?.Syntax == default)
-                        ? throw new NullReferenceException()
+                        ? throw new NullReferenceException(p.arg0?.Syntax == default ? "arg0 is invalid" : "arg1 is invalid" + $" in '{initializerOperation.Syntax}'")
                         : new KeyValuePair<SyntaxNode, SyntaxNode>(p.arg0.Syntax, p.arg1.Syntax))
                     .ToList();
                 return (true, initializerSyntaxNodes);
             }
-            catch (NullReferenceException)
+            catch (NullReferenceException nre)
             {
+                Log.Error(nre,
+                    $"{nameof(NormalizeDictionaryInitialization)}.{nameof(ExtractInitializersWithObjectSyntax)}: dictionary initialization found with incorrect number of valid arguments (!=2)");
                 return (false, default);
             }
         }
@@ -134,19 +136,33 @@ namespace Exercism.Representers.CSharp.Normalization
         private (bool Success, List<KeyValuePair<SyntaxNode, SyntaxNode>> InitializerSyntaxNodes)
             ExtractInitializersWithCollectionSyntax(IObjectOrCollectionInitializerOperation initializerOperation)
         {
+            string ErrorMessage(IObjectOrCollectionInitializerOperation op,
+                ImmutableArray<IArgumentOperation>? args) =>
+                args switch
+                {
+                    _ when args == default => "args is null",
+                    _ when args?.Length != 2 => $"invalid number of arguments: {args?.Length}",
+                    _ when args?[0]?.Syntax == default && args?[1]?.Syntax == default 
+                    => "args are both invalid",
+                    _ when args?[0]?.Syntax == default => "arg 0 is invalid",
+                    _ => "arg 1 is invalid"
+                } + $" in '{op.Syntax}'";
+
             try
             {
                 var initializerSyntaxNodes = initializerOperation.Initializers
                     .Select(initializer => (initializer as IInvocationOperation)?.Arguments)
                     .Select(args =>
                         (args?.Length != 2 || args?[0]?.Syntax == default || args?[1]?.Syntax == default)
-                            ? throw new NullReferenceException()
+                            ? throw new NullReferenceException(ErrorMessage(initializerOperation, args))
                             : new KeyValuePair<SyntaxNode, SyntaxNode>(args?[0]?.Syntax, args?[1]?.Syntax)
                     ).ToList();
                 return (true, initializerSyntaxNodes);
             }
-            catch (NullReferenceException)
+            catch (NullReferenceException nre)
             {
+                Log.Error(nre,
+                    $"{nameof(NormalizeDictionaryInitialization)}.{nameof(ExtractInitializersWithObjectSyntax)}: dictionary initialization found with incorrect number of valid arguments (!=2)");
                 return (false, default);
             }
         }
