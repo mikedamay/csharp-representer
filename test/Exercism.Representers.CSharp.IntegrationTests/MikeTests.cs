@@ -2,6 +2,7 @@ using Xunit;
 
 namespace Exercism.Representers.CSharp.IntegrationTests
 {
+    // dotnet test --logger "trx;LogfileName=test_results.xml" --results-directory ./
     public partial class SolutionRepresenterTests
     {
         [Fact]
